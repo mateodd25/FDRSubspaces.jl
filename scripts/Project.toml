@@ -1,2 +1,4 @@
 [deps]
+FDRControlSubspaceSelection = "36fa8c8c-3ecd-4332-a54a-5fc92d429aaa"
+Integrals = "de52edbc-65ea-441a-8357-d3a637375a31"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
