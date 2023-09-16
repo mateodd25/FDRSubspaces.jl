@@ -12,7 +12,7 @@ default(
     legendfont = fntsm,
 )
 
-Random.seed!(0)
+Random.seed!(1)
 dimensions = [500, 2000]
 for (i, d) in enumerate(dimensions)
      fixed_spectrum = [1+10*1.5^(-i+1) for i in 1:20]

@@ -80,7 +80,7 @@ function true_and_noisy_matrix(ensemble::AbstractMatrixEnsemble, dimension::Int)
     return true_signal, noisy_matrix
 end
 
-function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_estimate::Int, eigenvalues::Union{Vector{Float64}, Nothing}=nothing)::Vector{Float64}
+function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_estimate::Int, eigenvalues::Union{Vector{Float64},Nothing}=nothing)::Vector{Float64}
     """ Estimates the false discovery rate for different thresholds."""
 
     if isnothing(eigenvalues)
@@ -118,18 +118,22 @@ function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}})::Tuple{
     """
     eigenvalues = sort(eigvals(noisy_matrix), rev=true)
     n = length(eigenvalues)
-    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:(n-1)]
-    threshold = Statistics.median(spacings) * n^(1 / 2) * .3
+    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n / 2)]
+    threshold = Statistics.median(spacings) * n^(1 / 2) * 0.4
     rank_estimate = maximum(findall(>(threshold), spacings))
     return rank_estimate, threshold, spacings, eigenvalues
 end
 
 function best_k(fdr::Vector{Float64}, level::Float64)::Int
     """ Computes the best k for a given FDR level."""
-    return minimum(findall(>(level), fdr)) - 1
+    controllers = findall(>(level), fdr)
+    if length(controllers) == 0
+        return 0
+    end
+    return minimum(controllers) - 1
 end
 
-function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64, rank_estimate::Union{Int, Nothing}=nothing)::ResultProcedure
+function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::ResultProcedure
     """ Computes the FDR for different thresholds."""
     if isnothing(rank_estimate)
         rank_estimate, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix)
