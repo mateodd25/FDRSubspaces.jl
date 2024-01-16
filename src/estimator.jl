@@ -26,12 +26,12 @@ struct WishartFactorEnsemble <: AbstractAsymMatrixEnsemble
     dimension_proportion::Float64
 end
 
-struct ResultProcedure
+struct FDRResult
     """ A result is a tuple of the best, the fdr, rank estimate, the threshold, the spacings."""
     best_k::Int
     fdr::Vector{Float64}
     rank_estimate::Int
-    threshold::Float64
+    threshold::Float64 # spacings threshold
     spacings::Vector{Float64}
     eigenvalues::Vector{Float64}
 end
@@ -135,7 +135,7 @@ function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_est
     return FDR
 end
 
-function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}})::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
+function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; threshold_coefficient=0.40)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
@@ -143,7 +143,7 @@ function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}})::Tuple{
     eigenvalues = sort(eigvals(noisy_matrix), rev=true)
     n = length(eigenvalues)
     spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n / 2)]
-    threshold = Statistics.median(spacings) * n^(1 / 2) * 0.4
+    threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     return rank_estimate, threshold, spacings, eigenvalues
 end
@@ -157,15 +157,15 @@ function best_k(fdr::Vector{Float64}, level::Float64)::Int
     return minimum(controllers) - 1
 end
 
-function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::ResultProcedure
+function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::FDRResult
     """ Computes the FDR for different thresholds."""
     if isnothing(rank_estimate)
         rank_estimate, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix)
         fdr = estimate_fdr(noisy_matrix, rank_estimate, eigenvalues)
-        return ResultProcedure(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
+        return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
-        return ResultProcedure(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
+        return FDRResult(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
     end
 end
 
@@ -308,15 +308,15 @@ function estimate_rank(noisy_matrix::Matrix{Float64})::Tuple{Int,Float64,Vector{
     return rank_estimate, threshold, spacings, singular_values
 end
 
-function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::ResultProcedure
+function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::FDRResult
     """ Computes the FDR for different thresholds."""
     if isnothing(rank_estimate)
         rank_estimate, threshold, spacings, singular_values = estimate_rank(noisy_matrix)
         fdr = estimate_fdr_asymmetric(noisy_matrix, rank_estimate, singular_values)
-        return ResultProcedure(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
+        return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
-        return ResultProcedure(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
+        return FDRResult(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
     end
 end
 

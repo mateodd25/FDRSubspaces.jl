@@ -33,7 +33,7 @@ for (i, d) in enumerate(dimensions)
     delta = 15
     if i == 1
         scatter((rank-delta):(rank+6), results.eigenvalues[(rank-delta):(rank+6)],seriestype=:scatter, label="Eigenvalues")
-        yaxis!(L"Eigenvalues $\lambda_{i}$")
+        yaxis!(L"Eigenvalues $\lambda_{k}$")
     else
         scatter((rank-delta):(rank+6), results.eigenvalues[(rank-delta):(rank+6)],seriestype=:scatter, label="Eigenvalues", legend = false)
     end
@@ -43,7 +43,7 @@ for (i, d) in enumerate(dimensions)
 
     if i == 1
         scatter(1:(2*rank), results.spacings[1:(2*rank)], yscale = :log10, label="Spacings")
-        yaxis!(L"Spacing $\lambda_{i} - \lambda_{i+1}$")
+        yaxis!(L"Spacing $\lambda_{k} - \lambda_{k+1}$")
     else
         scatter(1:(2*rank), results.spacings[1:(2*rank)], yscale = :log10, label="Spacings", legend = false)
     end
