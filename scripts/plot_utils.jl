@@ -56,12 +56,19 @@ function plot_spacings(results, output_path, rank_upper_bound)
     savefig(output_path)
 end
 
-function plot_fdr(results, output_path, rank_upper_bound; threshold=-1)
+function plot_fdr(results, output_path, rank_upper_bound; threshold=-1, true_fdr::Union{Vector{Float64},Nothing}=nothing)
     rank_upper_bound = min(rank_upper_bound, length(results.fdr))
-    plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot))
-    yaxis!(L"FDR estimate$")
+
+    if !isnothing(true_fdr)
+        rank_upper_bound = min(length(true_fdr), rank_upper_bound)
+        plot(1:rank_upper_bound, true_fdr[1:rank_upper_bound], line=(3, :solid), label="True FDR")
+        plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot), label="Estimated FDR")
+    else
+        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot), label="Estimated FDR")
+    end
+    yaxis!(L"FDR$")
     xaxis!(L"Subspace dimension $k$")
-if threshold > 0
+    if threshold > 0
         plot!(ones(rank_upper_bound) * threshold, label=L"\alpha = " * string(threshold))
     end
     savefig(output_path)
@@ -81,7 +88,7 @@ function create_folder(output_folder::String)
     end
 end
 
-function plot_wrong_estimates(true_fdr, results_underestimate, results, results_overestimate, rank, dimension, dimension_proportion, output_folder; rank_upper_bound=-1, add_legend=true)
+function plot_wrong_estimates(true_fdr, results_underestimate, results, results_overestimate, rank, output_folder; rank_upper_bound=-1, add_legend=true)
     general_setup()
     if rank_upper_bound == -1
         rank_upper_bound = 2 * rank
@@ -98,12 +105,13 @@ function plot_wrong_estimates(true_fdr, results_underestimate, results, results_
     plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat r = r$", line=(3, :dot))
     plot!(1:rank_upper_bound, results_overestimate.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat{r} = 3r/2$", line=(3, :dashdot))
 
-    savefig(joinpath(output_folder, string(rank) * "-" * string(dimension) * "-" * string(dimension_proportion) * ".pdf"))
+    savefig(joinpath(output_folder, "different_rank_estimates.pdf"))
 
 end
 
-function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Float64, data_name::String, output_folder::String)
+function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Float64, data_name::String, output_folder::String; true_fdr::Union{Vector{Float64},Nothing}=nothing, name="")
     general_setup()
+    name = (name == "" ? "" : "_" * name)
     data = Dict(
         "databse" => data_name,
         "best_k" => results.best_k,
@@ -112,9 +120,9 @@ function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Flo
         "eigenvalues" => results.eigenvalues,
         "spacings" => results.spacings,
         "fdr" => results.fdr)
-    joinpath(output_folder, "results.json") |> (path -> write(path, JSON.json(data)))
+    joinpath(output_folder, "results" * name * ".json") |> (path -> write(path, JSON.json(data)))
     rank_upper_bound = 5 * results.rank_estimate
     plot_eigenvalues(results, joinpath(output_folder, "eigenvalues.pdf"), rank_upper_bound)
-    plot_fdr(results, joinpath(output_folder, "fdr.pdf"), rank_upper_bound, threshold=alpha)
+    plot_fdr(results, joinpath(output_folder, "fdr" * name * ".pdf"), rank_upper_bound, threshold=alpha, true_fdr=true_fdr)
     plot_spacings(results, joinpath(output_folder, "spacings.pdf"), rank_upper_bound)
 end

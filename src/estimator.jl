@@ -36,6 +36,11 @@ struct FisherFactorEnsemble <: AbstractAsymMatrixEnsemble
     dimension_proportion::Float64
 end
 
+struct UniformEnsemble <: AbstractAsymMatrixEnsemble
+    fixed_spectrum::Vector{Float64}
+    dimension_proportion::Float64
+end
+
 struct FDRResult
     """ A result is a tuple of the best, the fdr, rank estimate, the threshold, the spacings."""
     best_k::Int
@@ -92,6 +97,10 @@ function _generate_wishart_factor(dimension, m)
     return randn(dimension, m) / sqrt(m)
 end
 
+function _generate_correlated_gaussian(dimension, m, diagonal)
+    return Matrix(((randn(dimension, m) / sqrt(m))' .* sqrt.(diagonal))')
+end
+
 # TODO check the use of the dimension_proportion
 function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int)::Union{Symmetric{Float64,Matrix{Float64}},Matrix{Float64}}
     """ Generates a random matrix from the matrix ensemble."""
@@ -114,6 +123,10 @@ function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatri
     elseif isa(ensemble, FisherFactorEnsemble)
         m = Int(dimension / ensemble.dimension_proportion)
         return _generate_noise_fisher_factor(dimension, m)
+    elseif isa(ensemble, UniformEnsemble)
+        m = Int(dimension / ensemble.dimension_proportion)
+        diagonal = 10 * rand(m)
+        return _generate_correlated_gaussian(dimension, m, diagonal)
     else
         error("Unknown matrix ensemble.")
     end
@@ -169,11 +182,13 @@ function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; thresho
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
     """
+    println("Estimating symmetric rank...")
     eigenvalues = sort(eigvals(noisy_matrix), rev=true)
     n = length(eigenvalues)
     spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n * 1 / 2)]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
+    println("Rank estimate: $rank_estimate")
     return rank_estimate, threshold, spacings, eigenvalues
 end
 
@@ -334,12 +349,14 @@ function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=1.0)
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
     """
+    println("Estimating asymmetric rank...")
     singular_values = svdvals(noisy_matrix)
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
     spacings = [singular_values[i] - singular_values[i+1] for i in 1:Int(length(singular_values) / 2)]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
+    println("Rank estimate: $rank_estimate")
     return rank_estimate, threshold, spacings, singular_values
 end
 
