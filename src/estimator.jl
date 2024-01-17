@@ -135,14 +135,14 @@ function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_est
     return FDR
 end
 
-function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; threshold_coefficient=0.40)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
+function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; threshold_coefficient=0.4)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
     """
     eigenvalues = sort(eigvals(noisy_matrix), rev=true)
     n = length(eigenvalues)
-    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n / 2)]
+    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n * 1 / 2)]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     return rank_estimate, threshold, spacings, eigenvalues
@@ -294,7 +294,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
     return FDR
 end
 
-function estimate_rank(noisy_matrix::Matrix{Float64})::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
+function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.50)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix for asymmetric matrices.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
@@ -303,7 +303,7 @@ function estimate_rank(noisy_matrix::Matrix{Float64})::Tuple{Int,Float64,Vector{
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
     spacings = [singular_values[i] - singular_values[i+1] for i in 1:Int(length(singular_values) / 2)]
-    threshold = Statistics.median(spacings) * n^(1 / 2) * 0.4
+    threshold = Statistics.median(spacings) * n^(1 / 2) * thrshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     return rank_estimate, threshold, spacings, singular_values
 end
