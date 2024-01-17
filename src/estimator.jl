@@ -26,6 +26,16 @@ struct WishartFactorEnsemble <: AbstractAsymMatrixEnsemble
     dimension_proportion::Float64
 end
 
+struct FisherEnsemble <: AbstractMatrixEnsemble
+    fixed_spectrum::Vector{Float64}
+    dimension_proportion::Float64
+end
+
+struct FisherFactorEnsemble <: AbstractAsymMatrixEnsemble
+    fixed_spectrum::Vector{Float64}
+    dimension_proportion::Float64
+end
+
 struct FDRResult
     """ A result is a tuple of the best, the fdr, rank estimate, the threshold, the spacings."""
     best_k::Int
@@ -71,6 +81,18 @@ function limiting_spectral_distribution(ensemble::Union{AbstractMatrixEnsemble,A
     return limiting_distribution
 end
 
+function _generate_noise_fisher_factor(dimension, m)
+    factor = randn(3 * m, m) / sqrt(3 * m)
+    noise = randn(dimension, m) / sqrt(m)
+    noise = noise * (factor' * factor)
+    return noise
+end
+
+function _generate_wishart_factor(dimension, m)
+    return randn(dimension, m) / sqrt(m)
+end
+
+# TODO check the use of the dimension_proportion
 function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int)::Union{Symmetric{Float64,Matrix{Float64}},Matrix{Float64}}
     """ Generates a random matrix from the matrix ensemble."""
     if isa(ensemble, WignerEnsemble)
@@ -78,13 +100,20 @@ function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatri
         noise = (noise + noise') / 2
         return Symmetric(noise)
     elseif isa(ensemble, WishartEnsemble)
-        noise = randn(dimension, Int(ensemble.dimension_proportion * dimension)) / sqrt(dimension)
-        noise = noise * noise'
+        # noise = randn(dimension, Int(ensemble.dimension_proportion * dimension)) / sqrt(dimension)
+        factor = _generate_wishart_factor(dimension, Int(ensemble.dimension_proportion * dimension))
+        noise = factor * factor'
         return Symmetric(noise)
+    elseif isa(ensemble, FisherEnsemble)
+        factor = _generate_noise_fisher_factor(dimension, Int(ensemble.dimension_proportion * dimension))
+        return Symmetric(factor * factor')
     elseif isa(ensemble, WishartFactorEnsemble)
         m = Int(dimension / ensemble.dimension_proportion)
         noise = randn(dimension, m) / sqrt(m)
         return noise
+    elseif isa(ensemble, FisherFactorEnsemble)
+        m = Int(dimension / ensemble.dimension_proportion)
+        return _generate_noise_fisher_factor(dimension, m)
     else
         error("Unknown matrix ensemble.")
     end
@@ -157,16 +186,21 @@ function best_k(fdr::Vector{Float64}, level::Float64)::Int
     return minimum(controllers) - 1
 end
 
-function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::FDRResult
+function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false)::FDRResult
     """ Computes the FDR for different thresholds."""
+    eigenvalues = []
+    spacings = []
+    threshold = -1
+    if compute_spacings || isnothing(rank_estimate)
+        rank_estimate_sp, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix)
+    end
     if isnothing(rank_estimate)
-        rank_estimate, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix)
+        rank_estimate = rank_estimate_sp
         fdr = estimate_fdr(noisy_matrix, rank_estimate, eigenvalues)
-        return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
-        return FDRResult(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
     end
+    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
 end
 
 function get_top_eigenvectors(A::Symmetric{Float64,Matrix{Float64}}, k::Int)
@@ -249,6 +283,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
         error("The number of singular values is not equal to the minimum of the dimensions.")
     end
 
+    # TODO: Implement code to transpose the matrix, run everything, and transpose back in the end.
     if n > m
         error("Implementation only supports n <= m (more columns than rows).")
     end
@@ -294,7 +329,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
     return FDR
 end
 
-function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.50)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
+function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=1.0)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix for asymmetric matrices.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
@@ -303,26 +338,34 @@ function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.50
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
     spacings = [singular_values[i] - singular_values[i+1] for i in 1:Int(length(singular_values) / 2)]
-    threshold = Statistics.median(spacings) * n^(1 / 2) * thrshold_coefficient
+    threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     return rank_estimate, threshold, spacings, singular_values
 end
 
-function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64, rank_estimate::Union{Int,Nothing}=nothing)::FDRResult
+function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false)::FDRResult
     """ Computes the FDR for different thresholds."""
+    singular_values = []
+    spacings = []
+    threshold = -1
+    if compute_spacings || isnothing(rank_estimate)
+        rank_estimate_sp, threshold, spacings, singular_values = estimate_rank(noisy_matrix)
+    end
     if isnothing(rank_estimate)
-        rank_estimate, threshold, spacings, singular_values = estimate_rank(noisy_matrix)
-        fdr = estimate_fdr_asymmetric(noisy_matrix, rank_estimate, singular_values)
-        return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
+        rank_estimate = rank_estimate_sp
+        fdr = estimate_fdr(noisy_matrix, rank_estimate, singular_values)
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
-        return FDRResult(best_k(fdr, level), fdr, rank_estimate, -1, [], [])
     end
+    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
 end
 
 function get_top_singular_vectors(A::Matrix{Float64}, k::Int)
     n = size(A, 1)
-    U, _, _ = svd(A)   #k top eigenvalues/vectors
+    if n < k
+        error("The number of singular vectors requested is larger than the dimension.")
+    end
+    U, _, _ = svd(A)
     return U[:, 1:k]
 end
 

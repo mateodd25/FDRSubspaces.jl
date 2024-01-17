@@ -7,10 +7,18 @@ using FDRControlSubspaceSelection
 # using FDRControlSubspaceSelection
 
 function general_setup()
-    gr()
-    fntsm = Plots.font(pointsize=12)
-    fntlg = Plots.font(pointsize=18)
-    default(titlefont=fntlg, guidefont=fntlg, tickfont=fntsm, legendfont=fntsm)
+    fntsm = font("serif-roman", pointsize=16)
+    fntlg = font("serif-roman", pointsize=16)
+    default(
+        titlefont=fntlg,
+        guidefont=fntlg,
+        tickfont=fntsm,
+        legendfont=fntsm,
+    )
+    # gr()
+    # fntsm = Plots.font(pointsize=12)
+    # fntlg = Plots.font(pointsize=18)
+    # default(titlefont=fntlg, guidefont=fntlg, tickfont=fntsm, legendfont=fntsm)
 end
 
 function plot_wrong_estimates(csv_path, plot_file; lower_bound=1.0e-15, upper_bound=1.0)
@@ -71,6 +79,27 @@ function create_folder(output_folder::String)
     if !isdir(output_folder)
         mkpath(output_folder)
     end
+end
+
+function plot_wrong_estimates(true_fdr, results_underestimate, results, results_overestimate, rank, dimension, dimension_proportion, output_folder; rank_upper_bound=-1, add_legend=true)
+    general_setup()
+    if rank_upper_bound == -1
+        rank_upper_bound = 2 * rank
+    end
+    if add_legend
+        plot(1:rank_upper_bound, true_fdr, label="True FDR", line=(3, :solid))
+    else
+        plot(1:rank_upper_bound, true_fdr, label="True FDR", legend=false, line=(3, :solid))
+    end
+
+    xaxis!(L"Subspace dimension $k$")
+    yaxis!(L"FDR")
+    plot!(1:rank_upper_bound, results_underestimate.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat r = r/2$", line=(3, :dash))
+    plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat r = r$", line=(3, :dot))
+    plot!(1:rank_upper_bound, results_overestimate.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat{r} = 3r/2$", line=(3, :dashdot))
+
+    savefig(joinpath(output_folder, string(rank) * "-" * string(dimension) * "-" * string(dimension_proportion) * ".pdf"))
+
 end
 
 function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Float64, data_name::String, output_folder::String)

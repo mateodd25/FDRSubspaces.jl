@@ -6,45 +6,31 @@
   };
 
   nixConfig = {
-    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-trusted-public-keys =
+      "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
     extra-substituters = "https://devenv.cachix.org";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    devenv,
-    systems,
-    ...
-  } @ inputs: let
-    forEachSystem = nixpkgs.lib.genAttrs (import systems);
-  in {
-    packages = forEachSystem (system: {
-      devenv-up = self.devShells.${system}.default.config.procfileScript;
-    });
+  outputs = { self, nixpkgs, devenv, systems, ... }@inputs:
+    let forEachSystem = nixpkgs.lib.genAttrs (import systems);
+    in {
+      packages = forEachSystem (system: {
+        devenv-up = self.devShells.${system}.default.config.procfileScript;
+      });
 
-    devShells =
-      forEachSystem
-      (system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in {
-        default = devenv.lib.mkShell {
-          inherit inputs pkgs;
-          modules = [
-            {
-              # https://devenv.sh/reference/options/
-              packages = [pkgs.hello];
-
+      devShells = forEachSystem (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          default = devenv.lib.mkShell {
+            inherit inputs pkgs;
+            modules = [{
               enterShell = ''
-                hello
+                echo "Entering FDRSubspaces.jl shell";
               '';
-
-              processes.run.exec = "hello";
               languages.julia.enable = true;
               languages.julia.package = pkgs.julia-bin;
-            }
-          ];
-        };
-      });
-  };
+            }];
+          };
+        });
+    };
 }
