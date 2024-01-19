@@ -2,4 +2,5 @@
 .direnv
 data/*
 results/*
+*/DS_Store
 .DS_Store
