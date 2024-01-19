@@ -74,7 +74,7 @@ function plot_fdr(results, output_path, rank_upper_bound; threshold=-1, true_fdr
     else
         plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot), label="Estimated FDR")
     end
-    yaxis!(L"FDR$")
+    yaxis!(L"FDR")
     xaxis!(L"Subspace dimension $k$")
     if threshold > 0
         plot!(ones(rank_upper_bound) * threshold, label=L"\alpha = " * string(threshold))
