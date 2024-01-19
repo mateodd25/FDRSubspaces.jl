@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "cc66a333389214f59276b082290228f488ecdd15"
+project_hash = "e88ebc8232c8c9a21feb4ef2e0a865b7e1c69490"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
@@ -18,6 +18,12 @@ weakdeps = ["StaticArrays"]
 
     [deps.Adapt.extensions]
     AdaptStaticArraysExt = "StaticArrays"
+
+[[deps.ArgParse]]
+deps = ["Logging", "TextWrap"]
+git-tree-sha1 = "3102bce13da501c9104df33549f511cd25264d7d"
+uuid = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+version = "1.1.4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -1089,6 +1095,11 @@ deps = ["CSTParser"]
 git-tree-sha1 = "c63abb8bf01ba3f0e5421760454d578ee9bd12ca"
 uuid = "76b0de8b-5c4b-48ef-a724-914b33ca988d"
 version = "0.2.0"
+
+[[deps.TextWrap]]
+git-tree-sha1 = "9250ef9b01b66667380cf3275b3f7488d0e25faf"
+uuid = "b718987f-49a8-5099-9789-dcd902bef87d"
+version = "1.0.1"
 
 [[deps.Tokenize]]
 git-tree-sha1 = "5b5a892ba7704c0977013bd0f9c30f5d962181e0"

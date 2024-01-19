@@ -7,6 +7,7 @@ using FDRControlSubspaceSelection
 # using FDRControlSubspaceSelection
 
 function general_setup()
+    gr()
     fntsm = font("serif-roman", pointsize=16)
     fntlg = font("serif-roman", pointsize=16)
     default(
@@ -42,11 +43,18 @@ end
 
 function plot_eigenvalues(results, output_path, rank_upper_bound)
     rank_upper_bound = min(rank_upper_bound, length(results.eigenvalues))
-    scatter(1:rank_upper_bound, results.eigenvalues[1:rank_upper_bound], yscale=:log10, label="Eigenvalues")
+    println("The upper bound is $rank_upper_bound")
+    scatter(
+        1:rank_upper_bound,
+        # results.eigenvalues[1:rank_upper_bound] .- (minimum(results.eigenvalues[1:rank_upper_bound]) - 1e-16),
+        results.eigenvalues[1:rank_upper_bound],
+        # yscale=:log10,
+        label="Eigenvalues")
     yaxis!(L"Eigenvalues $\lambda_{k}$")
     xaxis!(L"Index $k$")
     savefig(output_path)
 end
+
 function plot_spacings(results, output_path, rank_upper_bound)
     rank_upper_bound = min(rank_upper_bound, length(results.spacings))
     scatter(1:rank_upper_bound, results.spacings[1:rank_upper_bound], yscale=:log10, label="Spacings")
@@ -76,6 +84,13 @@ end
 
 function plot_fds(csv_path, plot_file; lower_bound=1.0e-15, upper_bound=1.0)
     # TODO Complete
+end
+
+function plot_empirical_density(eigenvalues::Vector{Float64}, output_path::String)
+    histogram(eigenvalues, normalize=:pdf, label="Empirical eigenvalue density", bins=min(trunc(Int, length(eigenvalues) / 3), 100))
+    xaxis!(L"Eigenvalue $\lambda$")
+    yaxis!(L"Empirical density $f({\lambda})$")
+    savefig(output_path)
 end
 
 function generate_data_time_string()::String
@@ -122,7 +137,10 @@ function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Flo
         "fdr" => results.fdr)
     joinpath(output_folder, "results" * name * ".json") |> (path -> write(path, JSON.json(data)))
     rank_upper_bound = 5 * results.rank_estimate
-    plot_eigenvalues(results, joinpath(output_folder, "eigenvalues.pdf"), rank_upper_bound)
+    if length(results.eigenvalues) > 0
+        plot_eigenvalues(results, joinpath(output_folder, "eigenvalues.pdf"), rank_upper_bound)
+        plot_spacings(results, joinpath(output_folder, "spacings.pdf"), rank_upper_bound)
+        plot_empirical_density(results.eigenvalues, joinpath(output_folder, "empirical_density.pdf"))
+    end
     plot_fdr(results, joinpath(output_folder, "fdr" * name * ".pdf"), rank_upper_bound, threshold=alpha, true_fdr=true_fdr)
-    plot_spacings(results, joinpath(output_folder, "spacings.pdf"), rank_upper_bound)
 end

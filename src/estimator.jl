@@ -28,7 +28,6 @@ end
 
 struct FisherEnsemble <: AbstractMatrixEnsemble
     fixed_spectrum::Vector{Float64}
-    dimension_proportion::Float64
 end
 
 struct FisherFactorEnsemble <: AbstractAsymMatrixEnsemble
@@ -36,7 +35,11 @@ struct FisherFactorEnsemble <: AbstractAsymMatrixEnsemble
     dimension_proportion::Float64
 end
 
-struct UniformEnsemble <: AbstractAsymMatrixEnsemble
+struct UniformEnsemble <: AbstractMatrixEnsemble
+    fixed_spectrum::Vector{Float64}
+end
+
+struct UniformFactorEnsemble <: AbstractAsymMatrixEnsemble
     fixed_spectrum::Vector{Float64}
     dimension_proportion::Float64
 end
@@ -110,20 +113,26 @@ function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatri
         return Symmetric(noise)
     elseif isa(ensemble, WishartEnsemble)
         # noise = randn(dimension, Int(ensemble.dimension_proportion * dimension)) / sqrt(dimension)
-        factor = _generate_wishart_factor(dimension, Int(ensemble.dimension_proportion * dimension))
-        noise = factor * factor'
+        noise = _generate_wishart_factor(dimension, Int(ensemble.dimension_proportion * dimension))
+        noise = noise * noise'
         return Symmetric(noise)
-    elseif isa(ensemble, FisherEnsemble)
-        factor = _generate_noise_fisher_factor(dimension, Int(ensemble.dimension_proportion * dimension))
-        return Symmetric(factor * factor')
     elseif isa(ensemble, WishartFactorEnsemble)
         m = Int(dimension / ensemble.dimension_proportion)
         noise = randn(dimension, m) / sqrt(m)
         return noise
+    elseif isa(ensemble, FisherEnsemble)
+        noise = _generate_noise_fisher_factor(dimension, dimension)
+        return Symmetric((noise + noise') / 2)
     elseif isa(ensemble, FisherFactorEnsemble)
         m = Int(dimension / ensemble.dimension_proportion)
         return _generate_noise_fisher_factor(dimension, m)
     elseif isa(ensemble, UniformEnsemble)
+        m = dimension
+        diagonal = 10 * rand(m)
+        noise = _generate_correlated_gaussian(dimension, m, diagonal)
+        noise = (noise + noise') / 2
+        return Symmetric(noise)
+    elseif isa(ensemble, UniformFactorEnsemble)
         m = Int(dimension / ensemble.dimension_proportion)
         diagonal = 10 * rand(m)
         return _generate_correlated_gaussian(dimension, m, diagonal)
@@ -344,7 +353,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
     return FDR
 end
 
-function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=1.0)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
+function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.40)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix for asymmetric matrices.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.

@@ -23,7 +23,7 @@ for (i, d) in enumerate(dimensions)
     results = FDRControlSubspaceSelection.control_fdr(noisy_matrix, alpha)
     if i == 1
         scatter(1:(2*rank), results.eigenvalues[1:(2*rank)],seriestype=:scatter, label="Eigenvalues")
-        yaxis!(L"Eigenvalues $\lambda_{i}$")
+        yaxis!(L"Eigenvalues $\lambda_{k}$")
     else
         scatter(1:(2*rank), results.eigenvalues[1:(2*rank)],seriestype=:scatter, label="Eigenvalues", legend = false)
     end
