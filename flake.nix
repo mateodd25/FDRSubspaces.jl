@@ -1,6 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-python.url = "github:cachix/nixpkgs-python";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
   };
@@ -29,6 +30,15 @@
               '';
               languages.julia.enable = true;
               languages.julia.package = pkgs.julia-bin;
+              languages.python = { 
+              enable = true;
+ version = "3.11.3";
+              venv = {
+                enable = true;
+
+requirements = ./requirements.txt;
+              };
+              };
             }];
           };
         });

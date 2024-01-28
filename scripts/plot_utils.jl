@@ -8,8 +8,8 @@ using FDRControlSubspaceSelection
 
 function general_setup()
     gr()
-    fntsm = font("serif-roman", pointsize=16)
-    fntlg = font("serif-roman", pointsize=16)
+    fntsm = font("serif-roman", pointsize=18)
+    fntlg = font("serif-roman", pointsize=18)
     default(
         titlefont=fntlg,
         guidefont=fntlg,
@@ -41,43 +41,45 @@ function plot_wrong_estimates(csv_path, plot_file; lower_bound=1.0e-15, upper_bo
     savefig(plot_file)
 end
 
-function plot_eigenvalues(results, output_path, rank_upper_bound)
+function plot_eigenvalues(results, output_path, rank_upper_bound; add_legend=true)
     rank_upper_bound = min(rank_upper_bound, length(results.eigenvalues))
     println("The upper bound is $rank_upper_bound")
     scatter(
         1:rank_upper_bound,
-        # results.eigenvalues[1:rank_upper_bound] .- (minimum(results.eigenvalues[1:rank_upper_bound]) - 1e-16),
         results.eigenvalues[1:rank_upper_bound],
-        # yscale=:log10,
-        label="Eigenvalues")
+        label="Eigenvalues",
+        legend=add_legend,
+        markerstrokewidth=0,
+        markersize=4,
+        fg_legend = :transparent, legend_background_color = :transparent)
     yaxis!(L"Eigenvalues $\lambda_{k}$")
     xaxis!(L"Index $k$")
     savefig(output_path)
 end
 
-function plot_spacings(results, output_path, rank_upper_bound)
+function plot_spacings(results, output_path, rank_upper_bound; add_legend=true)
     rank_upper_bound = min(rank_upper_bound, length(results.spacings))
-    scatter(1:rank_upper_bound, results.spacings[1:rank_upper_bound], yscale=:log10, label="Spacings")
+    scatter(1:rank_upper_bound, results.spacings[1:rank_upper_bound], yscale=:log10, label="Spacings", legend=add_legend, markerstrokewidth=0, markersize=4, fg_legend = :transparent, legend_background_color = :transparent)
     plot!(ones(rank_upper_bound) * results.threshold, label="Threshold")
     yaxis!(L"Spacing $\lambda_{k} - \lambda_{k+1}$")
     xaxis!(L"Index $k$")
     savefig(output_path)
 end
 
-function plot_fdr(results, output_path, rank_upper_bound; threshold=-1, true_fdr::Union{Vector{Float64},Nothing}=nothing)
+function plot_fdr(results, output_path, rank_upper_bound; threshold=-1, true_fdr::Union{Vector{Float64},Nothing}=nothing, add_legend=true)
     rank_upper_bound = min(rank_upper_bound, length(results.fdr))
 
     if !isnothing(true_fdr)
         rank_upper_bound = min(length(true_fdr), rank_upper_bound)
-        plot(1:rank_upper_bound, true_fdr[1:rank_upper_bound], line=(3, :solid), label="True FDR")
-        plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot), label="Estimated FDR")
+        plot(1:rank_upper_bound, true_fdr[1:rank_upper_bound], line=(4, :solid), label="True FDR", legend=add_legend, color=12, fg_legend = :transparent, legend_background_color = :transparent)
+        plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(4, :dot), label="Estimated FDR", color=1)
     else
-        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(3, :dot), label="Estimated FDR")
+        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], line=(4, :dot), label="Estimated FDR", legend=add_legend, color=1, fg_legend = :transparent, legend_background_color = :transparent)
     end
-    yaxis!(L"FDR")
+    yaxis!("FDR")
     xaxis!(L"Subspace dimension $k$")
     if threshold > 0
-        plot!(ones(rank_upper_bound) * threshold, label=L"\alpha = " * string(threshold))
+        plot!(ones(rank_upper_bound) * threshold, label=L"\alpha = " * string(threshold), color=2)
     end
     savefig(output_path)
 end
@@ -86,10 +88,14 @@ function plot_fds(csv_path, plot_file; lower_bound=1.0e-15, upper_bound=1.0)
     # TODO Complete
 end
 
-function plot_empirical_density(eigenvalues::Vector{Float64}, output_path::String)
-    histogram(eigenvalues, normalize=:pdf, label="Empirical eigenvalue density", bins=min(trunc(Int, length(eigenvalues) / 3), 100))
-    xaxis!(L"Eigenvalue $\lambda$")
-    yaxis!(L"Empirical density $f({\lambda})$")
+function plot_empirical_density(eigenvalues::Vector{Float64}, output_path::String; is_singular=false)
+    histogram(eigenvalues[7:length(eigenvalues)], normalize=:pdf, bins=min(trunc(Int, length(eigenvalues) / 3), 200),linecolor = :transparent, legend=false)
+    if is_singular
+        xaxis!(L"Singular value $\sigma$")
+    else
+        xaxis!(L"Eigenvalue $\lambda$")
+    end
+    yaxis!("Normalized frequency")
     savefig(output_path)
 end
 
@@ -103,28 +109,36 @@ function create_folder(output_folder::String)
     end
 end
 
-function plot_wrong_estimates(true_fdr, results_underestimate, results, results_overestimate, rank, output_folder; rank_upper_bound=-1, add_legend=true)
+function plot_wrong_estimates(true_fdr, results_underestimate, results, results_overestimate, rank, output_folder; rank_upper_bound=-1, add_legend=true, threshold=-1)
     general_setup()
     if rank_upper_bound == -1
         rank_upper_bound = 2 * rank
     end
-    if add_legend
-        plot(1:rank_upper_bound, true_fdr, label="True FDR", line=(3, :solid))
+
+
+    if !isnothing(true_fdr)
+        if add_legend
+            plot(1:rank_upper_bound, true_fdr, label="True FDR", yaxis =:log,  line=(4, :solid), color=12)
+        else
+            plot(1:rank_upper_bound, true_fdr, label="True FDR", yaxis = :log, legend=false, line=(4, :solid), color=12)
+        end
+        plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent )
     else
-        plot(1:rank_upper_bound, true_fdr, label="True FDR", legend=false, line=(3, :solid))
+        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], yaxis =:log, label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent)
     end
+    yaxis!("FDR")
+    plot!(1:rank_upper_bound, results_underestimate.fdr[1:rank_upper_bound], label="Lower rank estimate", line=(4, :dash), color=7)
+    plot!(1:rank_upper_bound, results_overestimate.fdr[1:rank_upper_bound], label="Higher rank estimate", line=(4, :dashdot), color=9)
 
+    if threshold > 0
+        plot!(ones(rank_upper_bound) * threshold, label=L"\alpha = " * string(threshold), color=2)
+    end
     xaxis!(L"Subspace dimension $k$")
-    yaxis!(L"FDR")
-    plot!(1:rank_upper_bound, results_underestimate.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat r = r/2$", line=(3, :dash))
-    plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat r = r$", line=(3, :dot))
-    plot!(1:rank_upper_bound, results_overestimate.fdr[1:rank_upper_bound], label=L"FDR estimate $\hat{r} = 3r/2$", line=(3, :dashdot))
-
     savefig(joinpath(output_folder, "different_rank_estimates.pdf"))
 
 end
 
-function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Float64, data_name::String, output_folder::String; true_fdr::Union{Vector{Float64},Nothing}=nothing, name="")
+function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Float64, data_name::String, output_folder::String; true_fdr::Union{Vector{Float64},Nothing}=nothing, name="", add_legend=true, rank_upper_bound=60)
     general_setup()
     name = (name == "" ? "" : "_" * name)
     data = Dict(
@@ -136,11 +150,10 @@ function save_results(results::FDRControlSubspaceSelection.FDRResult, alpha::Flo
         "spacings" => results.spacings,
         "fdr" => results.fdr)
     joinpath(output_folder, "results" * name * ".json") |> (path -> write(path, JSON.json(data)))
-    rank_upper_bound = 5 * results.rank_estimate
     if length(results.eigenvalues) > 0
-        plot_eigenvalues(results, joinpath(output_folder, "eigenvalues.pdf"), rank_upper_bound)
-        plot_spacings(results, joinpath(output_folder, "spacings.pdf"), rank_upper_bound)
+        plot_eigenvalues(results, joinpath(output_folder, "eigenvalues.pdf"), rank_upper_bound, add_legend=add_legend)
+        plot_spacings(results, joinpath(output_folder, "spacings.pdf"), rank_upper_bound, add_legend=add_legend)
         plot_empirical_density(results.eigenvalues, joinpath(output_folder, "empirical_density.pdf"))
     end
-    plot_fdr(results, joinpath(output_folder, "fdr" * name * ".pdf"), rank_upper_bound, threshold=alpha, true_fdr=true_fdr)
+    plot_fdr(results, joinpath(output_folder, "fdr" * name * ".pdf"), rank_upper_bound, threshold=alpha, true_fdr=true_fdr, add_legend=add_legend)
 end

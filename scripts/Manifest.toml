@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "76985d640d500704f0d623a6e51b9b4399ec7385"
+project_hash = "eb2e431a26b7f53491cf0daeaf8d9fc248c91cb1"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "41c37aa88889c171f1300ceac1313c06e891d245"
@@ -278,7 +278,7 @@ uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
 version = "0.1.10"
 
 [[deps.FDRControlSubspaceSelection]]
-deps = ["Integrals", "LanguageServer", "LinearAlgebra", "Plots", "Random", "Statistics"]
+deps = ["ArgParse", "Integrals", "LanguageServer", "LinearAlgebra", "Plots", "Random", "Statistics"]
 path = ".."
 uuid = "36fa8c8c-3ecd-4332-a54a-5fc92d429aaa"
 version = "0.1.0"

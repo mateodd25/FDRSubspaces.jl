@@ -54,6 +54,30 @@ struct FDRResult
     eigenvalues::Vector{Float64}
 end
 
+function estimate_bbp_transition_point(ensemble::AbstractMatrixEnsemble)::Float64
+    """ Estimates the BBP transition point for the matrix ensemble."""
+    n = 3000
+    noise = generate_noise(ensemble, n)
+    largest_eigenvalue = maximum(eigvals(noise))
+    cauchy_transform = z -> _cauchy_transform_estimate(z, eigvals(noise), 0, n)
+    return 1 / cauchy_transform(largest_eigenvalue + 0.01)
+end
+
+                                function estimate_bbp_transition_point(ensemble::AbstractAsymMatrixEnsemble)::Float64
+    """ Estimates the BBP transition point for the matrix ensemble."""
+    n = 2000
+    noise = generate_noise(ensemble, n)
+    largest_singular_value = maximum(svdvals(noise))
+    D_transform = z -> _D_transform_estimate(
+        z,
+        svdvals(noise),
+        0,
+        n,
+        Int(n / ensemble.dimension_proportion)
+    )
+    return 1 / sqrt(D_transform(largest_singular_value + 0.01))
+end
+
 function cauchy_transform(ensemble::AbstractMatrixEnsemble)::Function
     """ Returns the Cauchy transform of the matrix ensemble."""
     distribution = limiting_spectral_distribution(ensemble)
@@ -75,7 +99,7 @@ function limiting_spectral_distribution(ensemble::Union{AbstractMatrixEnsemble,A
     """ Returns the limiting spectral distribution of the matrix ensemble."""
     if isa(ensemble, WignerEnsemble)
         limiting_distribution = SpectralDistribution(-2, 2, x -> sqrt(4 - x^2) / (2 * pi))
-    elseif  isa(ensemble, WishartEnsemble)
+    elseif isa(ensemble, WishartEnsemble)
         lb = (1 - sqrt(ensemble.dimension_proportion))^2
         ub = (1 + sqrt(ensemble.dimension_proportion))^2
         limiting_distribution = SpectralDistribution(lb, ub, x -> sqrt((ub - x) * (x - lb)) / (2 * pi * ensemble.dimension_proportion * x))
@@ -84,7 +108,7 @@ function limiting_spectral_distribution(ensemble::Union{AbstractMatrixEnsemble,A
         ub = (1 + sqrt(ensemble.dimension_proportion))^2
         limiting_distribution = SpectralDistribution(lb, ub, x -> sqrt((ub - x^2) * (x^2 - lb)) / (pi * ensemble.dimension_proportion * x))
     else
-        error("Unknown matrix ensemble.")
+        error("Unknown distribution for given matrix ensemble.")
     end
     return limiting_distribution
 end
@@ -104,7 +128,7 @@ function _generate_correlated_gaussian(dimension, m, diagonal)
     return Matrix(((randn(dimension, m) / sqrt(m))' .* sqrt.(diagonal))')
 end
 
-# TODO check the use of the dimension_proportion
+# TODO: check the use of the dimension_proportion
 function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int)::Union{Symmetric{Float64,Matrix{Float64}},Matrix{Float64}}
     """ Generates a random matrix from the matrix ensemble."""
     if isa(ensemble, WignerEnsemble)
@@ -113,7 +137,7 @@ function generate_noise(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatri
         return Symmetric(noise)
     elseif isa(ensemble, WishartEnsemble)
         # noise = randn(dimension, Int(ensemble.dimension_proportion * dimension)) / sqrt(dimension)
-        noise = _generate_wishart_factor(dimension, Int(ensemble.dimension_proportion * dimension))
+        noise = _generate_wishart_factor(dimension, Int(dimension / ensemble.dimension_proportion))
         noise = noise * noise'
         return Symmetric(noise)
     elseif isa(ensemble, WishartFactorEnsemble)
@@ -156,6 +180,11 @@ function true_and_noisy_matrix(ensemble::Union{AbstractMatrixEnsemble,AbstractAs
     return true_signal, noisy_matrix
 end
 
+function _cauchy_transform_estimate(z, eigenvalues, rank_estimate, n)
+    """Computes the Cauchy transform estimate at z."""
+    return sum((z .- eigenvalues[(rank_estimate+1):n]) .^ (-1)) / (n - rank_estimate)
+end
+
 function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_estimate::Int, eigenvalues::Union{Vector{Float64},Nothing}=nothing)::Vector{Float64}
     """ Estimates the false discovery rate for different thresholds."""
 
@@ -165,8 +194,7 @@ function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_est
     n = length(eigenvalues)
 
     function cauchy_transform_estimate(z)
-        """Computes the Cauchy transform estimate at z."""
-        return sum((z .- eigenvalues[(rank_estimate+1):n]) .^ (-1)) / (n - rank_estimate)
+        return _cauchy_transform_estimate(z, eigenvalues, rank_estimate, n)
     end
     function cauchy_transform_der_estimate(z)
         """Computes the derivative of the Cauchy transform estimate at z."""
@@ -210,13 +238,13 @@ function best_k(fdr::Vector{Float64}, level::Float64)::Int
     return minimum(controllers) - 1
 end
 
-function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false)::FDRResult
+function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.4)::FDRResult
     """ Computes the FDR for different thresholds."""
     eigenvalues = []
     spacings = []
     threshold = -1
     if compute_spacings || isnothing(rank_estimate)
-        rank_estimate_sp, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix)
+        rank_estimate_sp, threshold, spacings, eigenvalues = estimate_rank(noisy_matrix, threshold_coefficient=threshold_coefficient_rank)
     end
     if isnothing(rank_estimate)
         rank_estimate = rank_estimate_sp
@@ -293,8 +321,34 @@ function phi_transform_der(ensemble::AbstractMatrixEnsemble, q::Float64)::Functi
     return z -> -q * solve(IntegralProblem((x, p) -> (z^2 + x^2) / (z^2 - x^2)^2, distribution.lower_bound, distribution.upper_bound), QuadGKJL()).u - (1 - q) / z^2
 end
 
+function _phi_transform_estimate(z::Float64, eigenvalues::Vector{Float64}, rank_estimate::Int, n::Int, q::Float64)
+    """Computes the phi transform estimate at z."""
+    return (q / (n - rank_estimate)) * sum(z ./ (z^2 .- eigenvalues[(rank_estimate+1):n] .^ 2)) + (1 - q) / z
+end
+
+function _D_transform_estimate(z::Float64, eigenvalues::Vector{Float64}, rank_estimate::Int, n::Int, m::Int)
+    """Computes the D transform estimate at z."""
+    phi1 = _phi_transform_estimate(z, eigenvalues, rank_estimate, n, 1.0)
+    phi2 = _phi_transform_estimate(z, eigenvalues, rank_estimate, n, n / m)
+    return phi1 * phi2
+end
+
+function _phi_transform_der_estimate(z, eigenvalues, rank_estimate, n, q)
+    """Computes the derivative of the phi transform estimate at z."""
+    return (-q / (n - rank_estimate)) * sum((z^2 .+ eigenvalues[(rank_estimate+1):n] .^ 2) ./ ((z^2 .- eigenvalues[(rank_estimate+1):n] .^ 2) .^ 2)) - (1 - q) / z^2
+end
+
+function _D_transform_der_estimate(z, eigenvalues, rank_estimate::Int, n::Int, m::Int)
+    """Computes the derivative of the D transform estimate at z."""
+    phi1 = _phi_transform_estimate(z, eigenvalues, rank_estimate, n, 1.0)
+    phi2 = _phi_transform_estimate(z, eigenvalues, rank_estimate, n, n / m)
+    phi1_der = _phi_transform_der_estimate(z, eigenvalues, rank_estimate, n, 1.0)
+    phi2_der = _phi_transform_der_estimate(z, eigenvalues, rank_estimate, n, n / m)
+    return phi1_der * phi2 + phi1 * phi2_der
+end
+
 function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
-                      singular_values::Union{Vector{Float64},Nothing}=nothing)::Vector{Float64}
+    singular_values::Union{Vector{Float64},Nothing}=nothing)::Vector{Float64}
     """ Estimates the false discovery rate for different thresholds of asymmetric matrices."""
 
     if isnothing(singular_values)
@@ -311,31 +365,16 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
     if n > m
         error("Implementation only supports n <= m (more columns than rows).")
     end
-
     function phi_transform_estimate(z, q)
-        """Computes the phi transform estimate at y."""
-        return (q / (n - rank_estimate)) * sum(z ./ (z^2 .- singular_values[(rank_estimate+1):n] .^ 2)) + (1 - q) / z
-    end
-
-    function phi_transform_der_estimate(z, q)
-        """Computes the derivative of the phi transform estimate at y."""
-        return (-q / (n - rank_estimate)) * sum((z^2 .+ singular_values[(rank_estimate+1):n] .^ 2) ./ ((z^2 .- singular_values[(rank_estimate+1):n] .^ 2) .^ 2)) - (1 - q) / z^2
+        return _phi_transform_estimate(z, singular_values, rank_estimate, n, q)
     end
 
     function D_transform_estimate(z)
-        """Computes the D transform estimate at y."""
-        phi1 = phi_transform_estimate(z, 1)
-        phi2 = phi_transform_estimate(z, n / m)
-        return phi1 * phi2
+        return _D_transform_estimate(z, singular_values, rank_estimate, n, m)
     end
 
     function D_transform_der_estimate(z)
-        """Computes the derivative of the D transform estimate at y."""
-        phi1 = phi_transform_estimate(z, 1)
-        phi2 = phi_transform_estimate(z, n / m)
-        phi1_der = phi_transform_der_estimate(z, 1)
-        phi2_der = phi_transform_der_estimate(z, n / m)
-        return phi1_der * phi2 + phi1 * phi2_der
+        return _D_transform_der_estimate(z, singular_values, rank_estimate, n, m)
     end
 
     costs = ones(n)
@@ -345,7 +384,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
         if i <= rank_estimate
             D_val = D_transform_estimate(sigma)
             D_der_val = D_transform_der_estimate(sigma)
-            costs[i] += 2 * D_val * phi_transform_estimate(sigma, 1) / D_der_val
+            costs[i] += 2 * D_val * phi_transform_estimate(sigma, 1.0) / D_der_val
         end
         running_sum += costs[i]
         FDR[i] = running_sum / i
@@ -369,13 +408,13 @@ function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.40
     return rank_estimate, threshold, spacings, singular_values
 end
 
-function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false)::FDRResult
+function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.4)::FDRResult
     """ Computes the FDR for different thresholds."""
     singular_values = []
     spacings = []
     threshold = -1
     if compute_spacings || isnothing(rank_estimate)
-        rank_estimate_sp, threshold, spacings, singular_values = estimate_rank(noisy_matrix)
+        rank_estimate_sp, threshold, spacings, singular_values = estimate_rank(noisy_matrix, threshold_coefficient=threshold_coefficient_rank)
     end
     if isnothing(rank_estimate)
         rank_estimate = rank_estimate_sp
