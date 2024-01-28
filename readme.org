@@ -1,0 +1,47 @@
+#+title: FDRSubspaces.jl
+
+This repository complements the paper "False discovery rate control for subspace selection."
+
+* One-time setup
+
+*The instructions assume that your current working directory is the base of this repository.*
+
+The code in this repository is written in Julia and Python. To set the environment install Julia 1.10.0 from https://julialang.org/downloads/, and Python 3.11.3, and make sure that both =julia= and =python= are available in your =PATH=.
+
+Instantiate the Julia packages
+#+begin_src
+$ julia --project=. -e "import Pkg; Pkg.instantiate()"
+#+end_src
+
+Install Python packages
+#+begin_src shell
+$ python -m venv .venv
+$ source .venv/bin/activate
+$ pip install -r requirements.txt
+#+end_src
+
+*** Optional bonus
+
+If you use [[https://devenv.sh/][devenv]], you can use =flake.nix= for a developer enviroment that includes Julia and Python.
+
+* Running experiments
+All the scripts to run the numerical examples are in the =script= folder. All the results should will be saved to the =results= folder.
+
+** Generated distributions
+To run this experiment execute
+#+begin_src shell
+$ julia --project=scripts scripts/run_generated_distributions.jl --alpha 0.05
+#+end_src
+ *Warning: running this experiment might take a while.*
+
+** Single-cell RNA sequencing
+To run this experiment you need to download the data first, which can be done via
+#+begin_src shell
+$ python scripts/setup_single_cell_RNA.py
+#+end_src
+This script will download the sequences, preprocess them, and save the associated matrix to the =data= folder.
+
+After that, you can run the experiment by executing
+#+begin_src shell
+$ julia --project=scripts scripts/run_generated_distributions.jl --alpha 0.05
+#+end_src

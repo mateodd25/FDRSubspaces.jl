@@ -1,3 +1,7 @@
 biopython
 numpy
+canpy
+scipy
+glob
 wget
+tarfile
