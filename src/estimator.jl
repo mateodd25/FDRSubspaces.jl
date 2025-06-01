@@ -52,6 +52,7 @@ struct FDRResult
     threshold::Float64 # spacings threshold
     spacings::Vector{Float64}
     eigenvalues::Vector{Float64}
+    is_symmetric::Bool
 end
 
 function estimate_bbp_transition_point(ensemble::AbstractMatrixEnsemble)::Float64
@@ -252,7 +253,14 @@ function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Fl
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
     end
-    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
+    return FDRResult(best_k(fdr, level),
+                     fdr,
+                     rank_estimate,
+                     threshold,
+                     spacings,
+                     eigenvalues,
+                     true # is_symmetric
+                     )
 end
 
 function get_top_eigenvectors(A::Symmetric{Float64,Matrix{Float64}}, k::Int)
@@ -422,7 +430,14 @@ function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimat
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
     end
-    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
+    return FDRResult(best_k(fdr, level),
+                     fdr,
+                     rank_estimate,
+                     threshold,
+                     spacings,
+                     singular_values,
+                     false # is_symmetric
+                     )
 end
 
 function get_top_singular_vectors(A::Matrix{Float64}, k::Int)
