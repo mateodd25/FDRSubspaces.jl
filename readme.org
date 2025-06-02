@@ -11,6 +11,7 @@ The code in this repository is written in Julia and Python. To set the environme
 Instantiate the Julia packages
 #+begin_src
 $ julia --project=. -e "import Pkg; Pkg.instantiate()"
+$ julia --project=scripts -e "import Pkg; Pkg.instantiate()"
 #+end_src
 
 Install Python packages

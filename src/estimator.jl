@@ -63,7 +63,7 @@ function estimate_bbp_transition_point(ensemble::AbstractMatrixEnsemble)::Float6
     return 1 / cauchy_transform(largest_eigenvalue + 0.01)
 end
 
-                                function estimate_bbp_transition_point(ensemble::AbstractAsymMatrixEnsemble)::Float64
+function estimate_bbp_transition_point(ensemble::AbstractAsymMatrixEnsemble)::Float64
     """ Estimates the BBP transition point for the matrix ensemble."""
     n = 2000
     noise = generate_noise(ensemble, n)
@@ -434,7 +434,33 @@ function get_top_singular_vectors(A::Matrix{Float64}, k::Int)
     return U[:, 1:k]
 end
 
+function compute_mse(noisy_matrix::Symmetric{Float64, Matrix{Float64}}, true_matrix::Symmetric{Float64, Matrix{Float64}}, max_rank::Int)::Vector{Float64}
+    """ Computes the mean square error for different thresholds."""
+    U, S, Vt = svd(noisy_matrix)
+    mse = zeros(max_rank)
+    for k in 1:max_rank
+        approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
+        err    = approx .- true_matrix
+        mse[k] = sum(err .^ 2)/length(err)
+    end
+    return mse
+end
 
+function estimate_true_mse(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
+    """ Estimate the truncated mean square error for a given matrix ensemble in dimension via Monte Carlo."""
+    N = 100
+    if isnothing(upper_bound)
+        upper_bound = dimension
+    end
+    true_rank = length(ensemble.fixed_spectrum)
+    mse = zeros(upper_bound)
+    for _ in 1:N
+        true_signal, noisy_matrix = true_and_noisy_matrix(ensemble, dimension)
+        mse .+= compute_mse(noisy_matrix, true_signal, upper_bound)
+    end
+    mse ./= N
+    return mse
+end
 function estimate_true_fdr(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
     """ Estimate the true FDR for a given matrix ensemble in dimension via Monte Carlo."""
     N = 100

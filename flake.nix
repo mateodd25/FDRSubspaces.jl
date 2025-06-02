@@ -25,20 +25,20 @@
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              enterShell = ''
+                       enterShell = ''
                 echo "Entering FDRSubspaces.jl shell";
               '';
-              languages.julia.enable = true;
-              languages.julia.package = pkgs.julia-bin;
-              languages.python = { 
-              enable = true;
- version = "3.11.3";
-              venv = {
-                enable = true;
+                       languages.julia.enable = true;
+                       languages.julia.package = pkgs.julia-bin;
+                       languages.python = {
+                         enable = true;
+                         version = "3.12";
+                         venv = {
+                           enable = true;
 
-requirements = ./requirements.txt;
-              };
-              };
+                           requirements = ./requirements.txt;
+                         };
+                       };
             }];
           };
         });
