@@ -512,7 +512,7 @@ end
 
 function estimate_true_mse(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
     """ Estimate the true MSE for a given matrix ensemble in dimension via Monte Carlo."""
-    N = 100
+    N = 200
     if isnothing(upper_bound)
         upper_bound = dimension
     end
