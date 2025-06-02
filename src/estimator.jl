@@ -52,6 +52,7 @@ struct FDRResult
     threshold::Float64 # spacings threshold
     spacings::Vector{Float64}
     eigenvalues::Vector{Float64}
+    is_symmetric::Bool
 end
 
 function estimate_bbp_transition_point(ensemble::AbstractMatrixEnsemble)::Float64
@@ -67,7 +68,7 @@ function estimate_bbp_transition_point(ensemble::AbstractAsymMatrixEnsemble)::Fl
     """ Estimates the BBP transition point for the matrix ensemble."""
     n = 2000
     noise = generate_noise(ensemble, n)
-    largest_singular_value = maximum(svdvals(noise))
+                                largest_singular_value = maximum(svdvals(noise))
     D_transform = z -> _D_transform_estimate(
         z,
         svdvals(noise),
@@ -252,7 +253,14 @@ function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Fl
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
     end
-    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, eigenvalues)
+    return FDRResult(best_k(fdr, level),
+                     fdr,
+                     rank_estimate,
+                     threshold,
+                     spacings,
+                     eigenvalues,
+                     true # is_symmetric
+                     )
 end
 
 function get_top_eigenvectors(A::Symmetric{Float64,Matrix{Float64}}, k::Int)
@@ -422,7 +430,14 @@ function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimat
     else
         fdr = estimate_fdr(noisy_matrix, rank_estimate)
     end
-    return FDRResult(best_k(fdr, level), fdr, rank_estimate, threshold, spacings, singular_values)
+    return FDRResult(best_k(fdr, level),
+                     fdr,
+                     rank_estimate,
+                     threshold,
+                     spacings,
+                     singular_values,
+                     false # is_symmetric
+                     )
 end
 
 function get_top_singular_vectors(A::Matrix{Float64}, k::Int)
@@ -471,19 +486,60 @@ function estimate_true_fdr(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMa
     fdrs = zeros(upper_bound)
     for _ in 1:N
         true_signal, noisy_matrix = true_and_noisy_matrix(ensemble, dimension)
-        if isa(ensemble, AbstractMatrixEnsemble)
-            _, U = get_top_eigenvectors(true_signal, true_rank)
-            _, Uh = get_top_eigenvectors(noisy_matrix, upper_bound)
-            for k in 1:upper_bound
-                fdrs[k] += compute_fdp(U, Uh[:, (upper_bound-k+1):upper_bound])
-            end
-        else
-            U = get_top_singular_vectors(true_signal, true_rank)
-            Uh = get_top_singular_vectors(noisy_matrix, upper_bound)
-            for k in 1:upper_bound
-                fdrs[k] += compute_fdp(U, Uh[:, 1:min(upper_bound, k)])
-            end
-        end
+        fdrs .+= true_fdr(true_signal, noisy_matrix, upper_bound, true_rank)
     end
     return fdrs / N
+end
+
+function true_fdr(true_signal, noisy_matrix, upper_bound::Int, true_rank::Int)::Vector{Float64}
+    """ Computes the true FDR for a given true signal and noisy matrix."""
+    fdrs = zeros(upper_bound)
+    if isa(true_signal, Symmetric{Float64,Matrix{Float64}})
+        _, U = get_top_eigenvectors(true_signal, true_rank)
+        _, Uh = get_top_eigenvectors(noisy_matrix, upper_bound)
+        for k in 1:upper_bound
+            fdrs[k] = compute_fdp(U, Uh[:, (upper_bound-k+1):upper_bound])
+        end
+    else
+        U = get_top_singular_vectors(true_signal, true_rank)
+        Uh = get_top_singular_vectors(noisy_matrix, upper_bound)
+        for k in 1:upper_bound
+                fdrs[k] = compute_fdp(U, Uh[:, 1:min(upper_bound, k)])
+            end
+        end
+    return fdrs
+end
+
+function estimate_true_mse(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
+    """ Estimate the true MSE for a given matrix ensemble in dimension via Monte Carlo."""
+    N = 100
+    if isnothing(upper_bound)
+        upper_bound = dimension
+    end
+    mses = zeros(upper_bound)
+    for _ in 1:N
+        true_signal, noisy_matrix = true_and_noisy_matrix(ensemble, dimension)
+        mses .+= true_mse(true_signal, noisy_matrix, upper_bound)
+    end
+    return mses / N
+end
+
+function true_mse(true_signal, noisy_matrix, upper_bound)::Vector{Float64}
+    """ Computes the true MSE for a given true signal and noisy matrix."""
+    mses = zeros(upper_bound)
+    if isa(true_signal, Symmetric{Float64,Matrix{Float64}})
+        S, U = get_top_eigenvectors(noisy_matrix, size(true_signal, 1))
+        for k in 1:size(true_signal, 1)
+            approx = U[:, 1:k] * Diagonal(S[1:k]) * U[:, 1:k]'
+            mses[k] = sum((true_signal - approx) .^ 2)
+        end
+        return mses
+    else
+        U, S, Vt = svd(noisy_matrix)
+        for k in 1:size(true_signal, 2)
+            approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
+            mses[k] = sum((true_signal - approx) .^ 2)
+        end
+        return mses
+    end
 end

@@ -98,7 +98,7 @@ function main()
         output_path = joinpath("results", "hyperspectral", generate_data_time_string())
     end
     create_folder(output_path)
-    save_results(results, parsed_args["alpha"], "", output_path)
+    save_results(results, parsed_args["alpha"], "", output_path, cut_tail=true)
     plot_wrong_estimates(nothing, results_underestimation, results, results_overestimation, -1, output_path, rank_upper_bound=60, threshold=parsed_args["alpha"])
 end
 

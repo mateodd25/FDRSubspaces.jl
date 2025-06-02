@@ -45,6 +45,7 @@ function main()
         println("   $arg  =>  $val")
     end
     data = read_matrix_from_matlab_file(parsed_args["data_file"], parsed_args["matrix_name"])
+    println("The size of the data is $(size(data))")
     results_underestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=0.8)
     results = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"])
     results_overestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=0.2)
@@ -54,7 +55,7 @@ function main()
     end
     create_folder(output_path)
     save_results(results, parsed_args["alpha"], "PBMC", output_path, rank_upper_bound=30)
-    plot_wrong_estimates(nothing, results_underestimation, results, results_overestimation, -1, output_path, rank_upper_bound=30)
+    plot_wrong_estimates(nothing, results_underestimation, results, results_overestimation, -1, output_path, rank_upper_bound=30, threshold=parsed_args["alpha"])
 end
 
 main()
