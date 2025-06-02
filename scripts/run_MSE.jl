@@ -21,7 +21,7 @@ function main()
     upper_bound_rank = ranks[3] + 10
     rank = 0
     for r in ranks
-        fixed_spectrum = [1.5 for i in 1:r]
+        fixed_spectrum = [1.2 for i in 1:r]
         for j in 1:2
             fixed_spectrum[j] = 2.0
         end
