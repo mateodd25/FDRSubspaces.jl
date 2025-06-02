@@ -449,33 +449,33 @@ function get_top_singular_vectors(A::Matrix{Float64}, k::Int)
     return U[:, 1:k]
 end
 
-function compute_mse(noisy_matrix::Symmetric{Float64, Matrix{Float64}}, true_matrix::Symmetric{Float64, Matrix{Float64}}, max_rank::Int)::Vector{Float64}
-    """ Computes the mean square error for different thresholds."""
-    U, S, Vt = svd(noisy_matrix)
-    mse = zeros(max_rank)
-    for k in 1:max_rank
-        approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
-        err    = approx .- true_matrix
-        mse[k] = sum(err .^ 2)/length(err)
-    end
-    return mse
-end
+# function compute_mse(noisy_matrix::Symmetric{Float64, Matrix{Float64}}, true_matrix::Symmetric{Float64, Matrix{Float64}}, max_rank::Int)::Vector{Float64}
+#     """ Computes the mean square error for different thresholds."""
+#     U, S, Vt = svd(noisy_matrix)
+#     mse = zeros(max_rank)
+#     for k in 1:max_rank
+#         approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
+#         err    = approx .- true_matrix
+#         mse[k] = sum(err .^ 2)/length(err)
+#     end
+#     return mse
+# end
 
-function estimate_true_mse(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
-    """ Estimate the truncated mean square error for a given matrix ensemble in dimension via Monte Carlo."""
-    N = 100
-    if isnothing(upper_bound)
-        upper_bound = dimension
-    end
-    true_rank = length(ensemble.fixed_spectrum)
-    mse = zeros(upper_bound)
-    for _ in 1:N
-        true_signal, noisy_matrix = true_and_noisy_matrix(ensemble, dimension)
-        mse .+= compute_mse(noisy_matrix, true_signal, upper_bound)
-    end
-    mse ./= N
-    return mse
-end
+# function estimate_true_mse(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
+#     """ Estimate the truncated mean square error for a given matrix ensemble in dimension via Monte Carlo."""
+#     N = 100
+#     if isnothing(upper_bound)
+#         upper_bound = dimension
+#     end
+#     true_rank = length(ensemble.fixed_spectrum)
+#     mse = zeros(upper_bound)
+#     for _ in 1:N
+#         true_signal, noisy_matrix = true_and_noisy_matrix(ensemble, dimension)
+#         mse .+= compute_mse(noisy_matrix, true_signal, upper_bound)
+#     end
+#     mse ./= N
+#     return mse
+# end
 function estimate_true_fdr(ensemble::Union{AbstractMatrixEnsemble,AbstractAsymMatrixEnsemble}, dimension::Int, upper_bound::Union{Int,Nothing}=nothing)::Vector{Float64}
     """ Estimate the true FDR for a given matrix ensemble in dimension via Monte Carlo."""
     N = 100
@@ -528,15 +528,16 @@ function true_mse(true_signal, noisy_matrix, upper_bound)::Vector{Float64}
     """ Computes the true MSE for a given true signal and noisy matrix."""
     mses = zeros(upper_bound)
     if isa(true_signal, Symmetric{Float64,Matrix{Float64}})
-        S, U = get_top_eigenvectors(noisy_matrix, size(true_signal, 1))
-        for k in 1:size(true_signal, 1)
-            approx = U[:, 1:k] * Diagonal(S[1:k]) * U[:, 1:k]'
+        S, U = get_top_eigenvectors(noisy_matrix, upper_bound)
+        # println("S: ", S)
+        for k in 1:upper_bound
+            approx = U[:, (upper_bound-k+1):upper_bound] * Diagonal(S[(upper_bound-k+1):upper_bound]) * U[:, (upper_bound-k+1):upper_bound]'
             mses[k] = sum((true_signal - approx) .^ 2)
         end
         return mses
     else
         U, S, Vt = svd(noisy_matrix)
-        for k in 1:size(true_signal, 2)
+        for k in 1:upper_bound
             approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
             mses[k] = sum((true_signal - approx) .^ 2)
         end
