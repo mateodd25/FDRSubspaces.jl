@@ -68,10 +68,10 @@ function estimate_bbp_transition_point(ensemble::AbstractAsymMatrixEnsemble)::Fl
     """ Estimates the BBP transition point for the matrix ensemble."""
     n = 2000
     noise = generate_noise(ensemble, n)
-                                largest_singular_value = maximum(svdvals(noise))
+    largest_singular_value = maximum(sorted_spectrum(noise))
     D_transform = z -> _D_transform_estimate(
         z,
-        svdvals(noise),
+        sorted_spectrum(noise),
         0,
         n,
         Int(n / ensemble.dimension_proportion)
@@ -215,13 +215,21 @@ function estimate_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, rank_est
     return FDR
 end
 
+function sorted_spectrum(matrix::Symmetric{Float64,Matrix{Float64}})::Vector{Float64}
+    return sort(eigvals(matrix), rev=true)
+end
+
+function sorted_spectrum(matrix::Matrix{Float64})::Vector{Float64}
+    return svdvals(matrix)
+end
+
 function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; threshold_coefficient=0.4)::Tuple{Int,Float64,Vector{Float64},Vector{Float64}}
     """ Estimates the observable rank of the signal matrix.
 
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
     """
     println("Estimating symmetric rank...")
-    eigenvalues = sort(eigvals(noisy_matrix), rev=true)
+    eigenvalues = sorted_spectrum(noisy_matrix)
     n = length(eigenvalues)
     spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n * 1 / 2)]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
@@ -360,7 +368,7 @@ function estimate_fdr(noisy_matrix::Matrix{Float64}, rank_estimate::Int,
     """ Estimates the false discovery rate for different thresholds of asymmetric matrices."""
 
     if isnothing(singular_values)
-        singular_values = svdvals(noisy_matrix)
+        singular_values = sorted_spectrum(noisy_matrix)
     end
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
@@ -406,7 +414,7 @@ function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.40
     Returns the rank estimate, the threshold, the spacings, and the eigenvalues.
     """
     println("Estimating asymmetric rank...")
-    singular_values = svdvals(noisy_matrix)
+    singular_values = sorted_spectrum(noisy_matrix)
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
     spacings = [singular_values[i] - singular_values[i+1] for i in 1:Int(length(singular_values) / 2)]
@@ -536,9 +544,9 @@ function true_mse(true_signal, noisy_matrix, upper_bound)::Vector{Float64}
         end
         return mses
     else
-        U, S, Vt = svd(noisy_matrix)
+        F = svd(noisy_matrix)
         for k in 1:upper_bound
-            approx = U[:, 1:k] * Diagonal(S[1:k]) * Vt[1:k, :]
+            approx = F.U[:, 1:k] * Diagonal(F.S[1:k]) * F.Vt[1:k, :]
             mses[k] = sum((true_signal - approx) .^ 2)
         end
         return mses
