@@ -4,6 +4,11 @@ using Plots
 using Random
 using LaTeXStrings
 using Match
+
+# Fix plotting issues on NixOS
+ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
+gr()  # Use GR backend which works better with NixOS
+
 include("plot_utils.jl")
 
 @enum ExperimentType fisher = 1 wishart = 2 fisher_factor = 3 wishart_factor = 4 wigner = 5 uniform = 6 uniform_factor = 7

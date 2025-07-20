@@ -2,6 +2,10 @@ import FDRControlSubspaceSelection
 using Plots
 using Random
 
+# Fix plotting issues on NixOS
+ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
+gr()  # Use GR backend which works better with NixOS
+
 Random.seed!(1)
 # function main()
 d = 1000

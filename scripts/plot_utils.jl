@@ -6,6 +6,9 @@ using LaTeXStrings
 using FDRControlSubspaceSelection
 # using FDRControlSubspaceSelection
 
+# Fix plotting issues on NixOS
+ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
+
 function general_setup()
     gr()
     fntsm = font("serif-roman", pointsize=18)

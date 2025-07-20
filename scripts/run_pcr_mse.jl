@@ -3,6 +3,11 @@ import FDRControlSubspaceSelection
 using Plots
 using Random
 using LaTeXStrings
+
+# Fix plotting issues on NixOS
+ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
+gr()  # Use GR backend which works better with NixOS
+
 fntsm = font("serif-roman", pointsize = 16)
 fntlg = font("serif-roman", pointsize = 16)
 default(
@@ -23,9 +28,9 @@ function main()
     rank = 0
     rank_minima = []
     proportion = 1/5
-    spectrum = 1.5 # SELECTS THE CORRECT RANK
-    #spectrum = 1.25 # SELECTS 1
-    # spectrum = 1 # SELECTS 1
+    # spectrum = 1.5 # SELECTS THE CORRECT RANK
+    # spectrum = 1.25 # SELECTS 1
+    spectrum = 1 # SELECTS 1
     # spectrum = 1.2375
     eigenvalues_l = []
     for r in ranks

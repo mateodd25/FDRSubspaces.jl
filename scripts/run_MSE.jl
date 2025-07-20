@@ -2,6 +2,11 @@ import FDRControlSubspaceSelection
 using Plots
 using Random
 using LaTeXStrings
+
+# Fix plotting issues on NixOS
+ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
+gr()  # Use GR backend which works better with NixOS
+
 fntsm = font("serif-roman", pointsize = 16)
 fntlg = font("serif-roman", pointsize = 16)
 default(
