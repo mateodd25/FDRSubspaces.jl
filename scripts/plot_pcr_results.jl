@@ -119,7 +119,7 @@ function plot_individual_fdr_mse(data, output_dir::String)
         mse_minimum_value = minimum(true_mse)
         println("  Rank $r - MSE minimum: $(mse_minimum_value) at rank $(rank_minimum)")
         
-        range = 1:(min(r+10, length(true_mse)))
+        range = 1:(min(r+20, length(true_mse)))
         
         # Determine if this is the first plot (for legend)
         show_legend = (r == ranks[1])

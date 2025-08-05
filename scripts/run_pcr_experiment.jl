@@ -24,7 +24,7 @@ Random.seed!(1)
 function pcr_experiment(X_train, y_train, X_test, y_test, k)
     """
     Perform Principal Component Regression with k components.
-    Returns the test error.
+    Returns the test error and estimated beta.
     """
     d, n = size(X_train)
     
@@ -54,21 +54,21 @@ function pcr_experiment(X_train, y_train, X_test, y_test, k)
     y_pred = beta_k' * X_test  # 1 × n_test vector
     test_error = mean((y_pred[:] .- y_test).^2)
     
-    return test_error
+    return test_error, beta_k
 end
 
 function main()
     d = 400
     ranks = [5, 20, 40]
     proportion = 1/5
-    spectrum = 1.1
-    n_test_reps = 50  # Number of test repetitions per k
+    spectrum = 1.15
+    n_test_reps = 200  # Number of test repetitions per k
     noise_std = 0.1   # Standard deviation for label noise
     
     test_errors_by_rank = []
     fdrs_by_rank = []
     mses_by_rank = []
-    upper_bound_rank = maximum(ranks) + 10
+    upper_bound_rank = 2 * maximum(ranks) 
     
     for r in ranks
         println("Processing rank r = $r")
@@ -87,31 +87,27 @@ function main()
         push!(fdrs_by_rank, true_fdr)
         push!(mses_by_rank, true_mse)
         
-        # Generate training data
-        (true_signal, noisy_matrix_train) = FDRControlSubspaceSelection.true_and_noisy_matrix(ensemble, d)
-        
-        # Features X_i are columns of noisy_matrix (d × n matrix)
-        X_train = noisy_matrix_train  # 400 × 2000 matrix
-        n_train = size(X_train, 2)
-        
-        # Labels y_i = <X_i_true, ones(400)> + noise (generated from true signal, not noisy observations)
+        # Generate training-test data pairs (both training and test are now random)
+        println("  Generating training-test data pairs...")
         true_beta = ones(d)  # The true coefficient vector
-        y_train = true_beta' * true_signal + noise_std * randn(1, n_train)
-        y_train = y_train[:]  # Convert to vector
+        train_test_pairs = []
         
-        # Generate test data once per rank (reuse across all k values)
-        println("  Generating test data...")
-        test_data = []
         for rep in 1:n_test_reps
-            # Generate test data
-            (true_signal_test, noisy_matrix_test) = FDRControlSubspaceSelection.true_and_noisy_matrix(ensemble, d)
-            X_test = noisy_matrix_test  # This is what we observe (noisy)
+            # Generate training data
+            (true_signal_train, noisy_matrix_train) = FDRControlSubspaceSelection.true_and_noisy_matrix(ensemble, d)
+            X_train = noisy_matrix_train  # 400 × 2000 matrix
+            n_train = size(X_train, 2)
+            y_train = true_beta' * true_signal_train + noise_std * randn(1, n_train)
+            y_train = y_train[:]  # Convert to vector
             
-            # Generate test labels using true signal (same as training)
-            y_test = true_beta' * true_signal_test + noise_std * randn(1, size(X_test, 2))
+            # Generate test data  
+            (true_signal_test, noisy_matrix_test) = FDRControlSubspaceSelection.true_and_noisy_matrix(ensemble, d)
+            X_test = true_signal_test # This is what we observe (noisy)
+            n_test = size(X_test, 2)
+            y_test = true_beta' * true_signal_test + noise_std * randn(1, n_test)
             y_test = y_test[:]
             
-            push!(test_data, (X_test, y_test))
+            push!(train_test_pairs, (X_train, y_train, X_test, y_test))
         end
         
         # Test for k from 1 to 2*r
@@ -121,14 +117,15 @@ function main()
         for k in 1:max_k
             println("  Testing k = $k")
             
-            # Perform multiple test repetitions using the same test data
+            # Perform multiple test repetitions
             test_errors_k = zeros(n_test_reps)
             
             for rep in 1:n_test_reps
-                X_test, y_test = test_data[rep]
+                X_train, y_train, X_test, y_test = train_test_pairs[rep]
                 
                 # Perform PCR and compute test error
-                test_errors_k[rep] = pcr_experiment(X_train, y_train, X_test, y_test, k)
+                test_error, _ = pcr_experiment(X_train, y_train, X_test, y_test, k)
+                test_errors_k[rep] = test_error
             end
             
             # Average test error over repetitions
@@ -139,6 +136,7 @@ function main()
         
         # Plot test error for this rank
         println("  Creating test error plot...")
+        
         plot(1:max_k, test_errors, 
              label=false, 
              line=(4, :solid), 
@@ -146,7 +144,9 @@ function main()
              ylabel="Test Error",
              fg_legend=:transparent, 
              legend_background_color=:transparent)
+        
         vline!([r], label="True rank", line=(2, :dash), color=:red)
+        
         savefig("results/pcr_experiment/pcr_test_error_r$(r)_d$(d)_spectrum$(spectrum).pdf")
         
         # Plot combined FDR and MSE for this rank (dual-axis)
@@ -210,7 +210,6 @@ function main()
     
     xlabel!(L"Truncation rank $k$")
     ylabel!("Test Error")
-    # title!("PCR Test Error vs Number of Components")
     
     # Save combined plot
     savefig("results/pcr_experiment/pcr_test_error_combined_d$(d)_spectrum$(spectrum).pdf")
