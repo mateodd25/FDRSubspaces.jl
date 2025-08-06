@@ -82,11 +82,12 @@ function plot_combined_test_errors(data, output_dir::String)
     
     colors = [12, 7, 2]
     lines = [:solid, :dash, :dot]
+    max_plot_k = 60  # Limit to truncation rank 60
     
     plot()
     for (i, r) in enumerate(ranks)
-        max_k = 2 * r
-        plot!(1:max_k, test_errors_by_rank[i], 
+        plot_range = 1:min(max_plot_k, length(test_errors_by_rank[i]))
+        plot!(plot_range, test_errors_by_rank[i][plot_range], 
               label="r = $r", 
               line=(4, lines[i]), 
               color=colors[i])
@@ -119,7 +120,7 @@ function plot_individual_fdr_mse(data, output_dir::String)
         mse_minimum_value = minimum(true_mse)
         println("  Rank $r - MSE minimum: $(mse_minimum_value) at rank $(rank_minimum)")
         
-        range = 1:(min(r+20, length(true_mse)))
+        range = 1:(min(r + 40, length(true_mse)))
         
         # Determine if this is the first plot (for legend)
         show_legend = (r == ranks[1])
@@ -169,15 +170,16 @@ function plot_combined_fdr(data, output_dir::String)
     ranks = params["ranks"]
     d = params["d"]
     spectrum = params["spectrum"]
-    upper_bound_rank = params["upper_bound_rank"]
     fdrs_by_rank = data["fdrs_by_rank"]
     
     colors = [12, 7, 2]
     lines = [:solid, :dash, :dot]
+    max_plot_k = 60  # Limit to truncation rank 60
     
     plot()
     for (i, r) in enumerate(ranks)
-        plot!(1:upper_bound_rank, fdrs_by_rank[i][1:upper_bound_rank], 
+        plot_range = 1:min(max_plot_k, length(fdrs_by_rank[i]))
+        plot!(plot_range, fdrs_by_rank[i][plot_range], 
               label=L"True FDR $r = $"*string(r), 
               line=(4, lines[i]), 
               color=colors[i],
@@ -189,6 +191,43 @@ function plot_combined_fdr(data, output_dir::String)
     
     savefig(joinpath(output_dir, "pcr_fdr_combined_d$(d)_spectrum$(spectrum).pdf"))
     println("  Saved: pcr_fdr_combined_d$(d)_spectrum$(spectrum).pdf")
+end
+
+function plot_combined_mse(data, output_dir::String)
+    """Plot combined MSE plot for all ranks."""
+    println("Creating combined MSE plot...")
+    
+    params = data["parameters"]
+    ranks = params["ranks"]
+    d = params["d"]
+    spectrum = params["spectrum"]
+    mses_by_rank = data["mses_by_rank"]
+    
+    colors = [12, 7, 2]
+    lines = [:solid, :dash, :dot]
+    max_plot_k = 60  # Limit to truncation rank 60
+    
+    plot()
+    for (i, r) in enumerate(ranks)
+        plot_range = 1:min(max_plot_k, length(mses_by_rank[i]))
+        plot!(plot_range, mses_by_rank[i][plot_range], 
+              label=L"True MSE $r = $"*string(r), 
+              line=(4, lines[i]), 
+              color=colors[i],
+              fg_legend=:transparent, 
+              legend_background_color=:transparent)
+        
+        # Mark the MSE minimum for each rank (only if within plot range)
+        rank_minimum = argmin(mses_by_rank[i])
+        if rank_minimum <= max_plot_k
+            vline!([rank_minimum], line=(2, :dash), color=colors[i], alpha=0.7, label="")
+        end
+    end
+    xlabel!(L"Truncation rank $k$")
+    ylabel!("Mean Squared Error")
+    
+    savefig(joinpath(output_dir, "pcr_mse_combined_d$(d)_spectrum$(spectrum).pdf"))
+    println("  Saved: pcr_mse_combined_d$(d)_spectrum$(spectrum).pdf")
 end
 
 function main()
@@ -207,6 +246,7 @@ function main()
     plot_combined_test_errors(data, output_dir)
     plot_individual_fdr_mse(data, output_dir)
     plot_combined_fdr(data, output_dir)
+    plot_combined_mse(data, output_dir)
     
     println("\nAll plots generated successfully!")
     println("Output directory: $output_dir")

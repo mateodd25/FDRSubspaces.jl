@@ -61,7 +61,7 @@ function main()
     d = 400
     ranks = [5, 20, 40]
     proportion = 1/5
-    spectrum = 1.15
+    spectrum = 1.0
     n_test_reps = 200  # Number of test repetitions per k
     noise_std = 0.1   # Standard deviation for label noise
     
@@ -111,9 +111,9 @@ function main()
         end
         
         # Test for k from 1 to 2*r
-        max_k = 2 * r
+        max_k = 2 * maximum(ranks)
         test_errors = zeros(max_k)
-        
+
         for k in 1:max_k
             println("  Testing k = $k")
             
@@ -197,11 +197,13 @@ function main()
     # Create combined plot for all ranks
     colors = [12, 7, 2]
     lines = [:solid, :dash, :dot]
+    max_combined_k = 2 * maximum(ranks)  # Use 2 * max(ranks)
     
     plot()
     for (i, r) in enumerate(ranks)
-        max_k = 2 * r
-        plot!(1:max_k, test_errors_by_rank[i], 
+        # Only plot up to the minimum of max_combined_k or available data
+        plot_range = 1:min(max_combined_k, length(test_errors_by_rank[i]))
+        plot!(plot_range, test_errors_by_rank[i][plot_range], 
               label="r = $r", 
               line=(4, lines[i]), 
               color=colors[i])
