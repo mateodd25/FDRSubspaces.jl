@@ -61,7 +61,7 @@ function main()
     d = 400
     ranks = [5, 20, 40]
     proportion = 1/5
-    spectrum = 1.0
+    spectrum = 1.5
     n_test_reps = 200  # Number of test repetitions per k
     noise_std = 0.1   # Standard deviation for label noise
     
