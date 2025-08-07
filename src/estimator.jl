@@ -231,7 +231,7 @@ function estimate_rank(noisy_matrix::Symmetric{Float64,Matrix{Float64}}; thresho
     println("Estimating symmetric rank...")
     eigenvalues = sorted_spectrum(noisy_matrix)
     n = length(eigenvalues)
-    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:Int(n * 1 / 2)]
+    spacings = [eigenvalues[i] - eigenvalues[i+1] for i in 1:ceil(Int,n * 1 / 2)]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     println("Rank estimate: $rank_estimate")

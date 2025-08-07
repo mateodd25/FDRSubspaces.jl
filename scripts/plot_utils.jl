@@ -33,7 +33,7 @@ function plot_wrong_estimates(csv_path, plot_file; lower_bound=1.0e-15, upper_bo
     for col in names(losses)
         plot!(
             losses[!, col],
-            yaxis=(:log10, [lower_bound, upper_bound]),
+            yaxis=([lower_bound, upper_bound]),
             label=col,
             line=(2, :solid),
             # legend = :bottomleft,
@@ -124,16 +124,13 @@ function plot_wrong_estimates(true_fdr, results_underestimate, results, results_
 
     if !isnothing(true_fdr)
         if add_legend
-            # plot(1:rank_upper_bound, true_fdr, label="True FDR", yaxis =:log,  line=(4, :solid), color=12)
-            plot(1:rank_upper_bound, true_fdr, label="True FDR",  line=(4, :solid), color=12)
+            plot(1:rank_upper_bound, true_fdr, label="True FDR", yscale=:log10, line=(4, :solid), color=12, legend=:bottomright)
         else
-            # plot(1:rank_upper_bound, true_fdr, label="True FDR", yaxis = :log, legend=false, line=(4, :solid), color=12)
-            plot(1:rank_upper_bound, true_fdr, label="True FDR", legend=false, line=(4, :solid), color=12)
+            plot(1:rank_upper_bound, true_fdr, label="True FDR", yscale=:log10, legend=false, line=(4, :solid), color=12)
         end
         plot!(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent )
     else
-        # plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], yaxis =:log, label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent)
-        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound],  label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent)
+        plot(1:rank_upper_bound, results.fdr[1:rank_upper_bound], label="Default rank estimate", line=(4, :dot),color=1, fg_legend = :transparent, legend_background_color = :transparent, legend=:topleft)
     end
     yaxis!("FDR")
     plot!(1:rank_upper_bound, results_underestimate.fdr[1:rank_upper_bound], label="Lower rank estimate", line=(4, :dash), color=7)

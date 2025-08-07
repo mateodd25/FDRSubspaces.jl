@@ -38,7 +38,7 @@ function parse_cli()
 end
 
 function main()
-    println("Running hyperspectral imaging experiment")
+    println("Running RNA experiment")
     parsed_args = parse_cli()
     println("Parsed args:")
     for (arg, val) in parsed_args

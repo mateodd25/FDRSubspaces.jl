@@ -5,3 +5,6 @@ glob2
 wget
 xtarfile
 scanpy
+pandas
+yfinance
+lxml

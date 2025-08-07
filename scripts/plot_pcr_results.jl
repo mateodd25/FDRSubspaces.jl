@@ -7,8 +7,8 @@ using ArgParse
 ENV["GKSwstype"] = "nul"  # Disable problematic GKS socket connections
 gr()  # Use GR backend which works better with NixOS
 
-fntsm = font("serif-roman", pointsize = 16)
-fntlg = font("serif-roman", pointsize = 16)
+fntsm = font("serif-roman", pointsize = 20)
+fntlg = font("serif-roman", pointsize = 22)
 default(
     titlefont = fntlg,
     guidefont = fntlg,
@@ -53,10 +53,11 @@ function plot_individual_test_errors(data, output_dir::String)
     test_errors_by_rank = data["test_errors_by_rank"]
     
     for (i, r) in enumerate(ranks)
-        max_k = 2 * r
         test_errors = test_errors_by_rank[i]
+        # Use the actual length of available data
+        plot_range = 1:length(test_errors)
         
-        plot(1:max_k, test_errors, 
+        plot(plot_range, test_errors, 
              label=false, 
              line=(4, :solid), 
              xlabel=L"Truncation rank $k$",
@@ -90,7 +91,9 @@ function plot_combined_test_errors(data, output_dir::String)
         plot!(plot_range, test_errors_by_rank[i][plot_range], 
               label="r = $r", 
               line=(4, lines[i]), 
-              color=colors[i])
+              color=colors[i],
+              fg_legend=:transparent, 
+              legend_background_color=:transparent)
         vline!([r], line=(2, :dash), color=colors[i], alpha=0.7, label="")
     end
     
@@ -180,11 +183,9 @@ function plot_combined_fdr(data, output_dir::String)
     for (i, r) in enumerate(ranks)
         plot_range = 1:min(max_plot_k, length(fdrs_by_rank[i]))
         plot!(plot_range, fdrs_by_rank[i][plot_range], 
-              label=L"True FDR $r = $"*string(r), 
+              label="", 
               line=(4, lines[i]), 
-              color=colors[i],
-              fg_legend=:transparent, 
-              legend_background_color=:transparent)
+              color=colors[i])
     end
     xlabel!(L"Truncation rank $k$")
     ylabel!("False Discovery Rate")
@@ -208,23 +209,38 @@ function plot_combined_mse(data, output_dir::String)
     max_plot_k = 60  # Limit to truncation rank 60
     
     plot()
+    star_added = false  # Track if we've added the star label
+    
     for (i, r) in enumerate(ranks)
         plot_range = 1:min(max_plot_k, length(mses_by_rank[i]))
         plot!(plot_range, mses_by_rank[i][plot_range], 
-              label=L"True MSE $r = $"*string(r), 
+              label="", 
               line=(4, lines[i]), 
-              color=colors[i],
-              fg_legend=:transparent, 
-              legend_background_color=:transparent)
+              color=colors[i])
         
-        # Mark the MSE minimum for each rank (only if within plot range)
+        # Mark the MSE minimum with a star (only if within plot range)
         rank_minimum = argmin(mses_by_rank[i])
         if rank_minimum <= max_plot_k
-            vline!([rank_minimum], line=(2, :dash), color=colors[i], alpha=0.7, label="")
+            mse_minimum_value = mses_by_rank[i][rank_minimum]
+            scatter!([rank_minimum], [mse_minimum_value], 
+                    marker=(:star, 12), 
+                    color=colors[i],  # Use curve color for marker
+                    label="")  # No label for the actual markers
+            
+            # Add gray label only once using an invisible scatter plot
+            if !star_added
+                scatter!(Float64[], Float64[], 
+                        marker=(:star, 12), 
+                        color=:gray, 
+                        label="MSE minimum")
+                star_added = true
+            end
         end
     end
+    
     xlabel!(L"Truncation rank $k$")
     ylabel!("Mean Squared Error")
+    plot!(fg_legend=:transparent, legend_background_color=:transparent)
     
     savefig(joinpath(output_dir, "pcr_mse_combined_d$(d)_spectrum$(spectrum).pdf"))
     println("  Saved: pcr_mse_combined_d$(d)_spectrum$(spectrum).pdf")
