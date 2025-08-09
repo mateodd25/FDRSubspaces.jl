@@ -3,7 +3,7 @@
 setup_sp500_returns.py
 
 Fetches daily adjusted close prices for all S&P 500 constituents,
-computes log-returns, centers each series, and saves the resulting
+computes normalized returns and saves the resulting
 matrix X (T × N) into a .mat file for use in FDR subspace selection experiments.
 
 Similar to setup_single_cell_RNA.py but for financial data.
@@ -177,15 +177,14 @@ def download_prices(tickers, start_date, end_date):
 
 
 def compute_log_returns(price_df):
-    """Compute log returns and center each column."""
+    """Compute normalized returns and center each column."""
     print("Computing log returns...")
 
     # Remove columns with insufficient data
     min_observations = 100  # Require at least 100 trading days
     price_df = price_df.dropna(thresh=min_observations, axis=1)
 
-    # Compute log-returns
-    # R = price_df / price_df.shift(1)
+    # Compute returns
     R = price_df - price_df.shift(1)
 
     # Drop rows with all NaNs (typically the first row)
@@ -207,7 +206,6 @@ def compute_log_returns(price_df):
 
     # Normalize by standard deviation (standardize)
     R_normalized = R_centered / R.std(axis=0)
-    # R_normalized = R
 
     print(
         f"  Final return matrix: {R_normalized.shape[0]} days × {R_normalized.shape[1]} assets"

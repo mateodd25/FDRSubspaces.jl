@@ -46,9 +46,9 @@ function main()
     end
     data = read_matrix_from_matlab_file(parsed_args["data_file"], parsed_args["matrix_name"])
     println("The size of the data is $(size(data))")
-    results_underestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=0.8)
+    results_underestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=1.0)
     results = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"])
-    results_overestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=0.2)
+    results_overestimation = FDRControlSubspaceSelection.control_fdr(data, parsed_args["alpha"], threshold_coefficient_rank=0.25)
     output_path = parsed_args["output_folder"]
     if output_path == "-1"
         output_path = joinpath("results", "rna", generate_data_time_string())

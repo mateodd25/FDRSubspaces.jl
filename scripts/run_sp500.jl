@@ -69,13 +69,16 @@ function main()
     data = data'
     
     # Convert to correlation matrix for financial data stability
-    correlation_matrix = cor(data')
-    Σ_sample = Symmetric(correlation_matrix)
+    # correlation_matrix = cor(data')
+    Σ_sample = data * data' / size(data, 2)  # Sample covariance matrix
+
     
-    results_underestimation = FDRControlSubspaceSelection.control_fdr(Σ_sample, parsed_args["alpha"], threshold_coefficient_rank=0.75)
+    results_underestimation = FDRControlSubspaceSelection.control_fdr(Σ_sample, parsed_args["alpha"], threshold_coefficient_rank=1.0)
     results = FDRControlSubspaceSelection.control_fdr(Σ_sample, parsed_args["alpha"])
     results_overestimation = FDRControlSubspaceSelection.control_fdr(Σ_sample, parsed_args["alpha"], threshold_coefficient_rank=0.25)
-    
+    println("Results underestimation: $(results_underestimation.best_k)")
+    println("Results: $(results.best_k)")
+    println("Results overestimation: $(results_overestimation.best_k)")
     output_path = parsed_args["output_folder"]
     if output_path == "-1"
         output_path = joinpath("results", "sp500", generate_data_time_string())

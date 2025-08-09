@@ -247,7 +247,7 @@ function best_k(fdr::Vector{Float64}, level::Float64)::Int
     return minimum(controllers) - 1
 end
 
-function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.4)::FDRResult
+function control_fdr(noisy_matrix::Symmetric{Float64,Matrix{Float64}}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.5)::FDRResult
     """ Computes the FDR for different thresholds."""
     eigenvalues = []
     spacings = []
@@ -417,14 +417,14 @@ function estimate_rank(noisy_matrix::Matrix{Float64}; threshold_coefficient=0.40
     singular_values = sorted_spectrum(noisy_matrix)
     n = size(noisy_matrix, 1)
     m = size(noisy_matrix, 2)
-    spacings = [singular_values[i] - singular_values[i+1] for i in 1:Int(length(singular_values) / 2)]
+    spacings = [singular_values[i] - singular_values[i+1] for i in 1:ceil(Int,(length(singular_values) / 2))]
     threshold = Statistics.median(spacings) * n^(1 / 2) * threshold_coefficient
     rank_estimate = maximum(findall(>(threshold), spacings))
     println("Rank estimate: $rank_estimate")
     return rank_estimate, threshold, spacings, singular_values
 end
 
-function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.4)::FDRResult
+function control_fdr(noisy_matrix::Matrix{Float64}, level::Float64; rank_estimate::Union{Int,Nothing}=nothing, compute_spacings=false, threshold_coefficient_rank=0.5)::FDRResult
     """ Computes the FDR for different thresholds."""
     singular_values = []
     spacings = []
