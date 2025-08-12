@@ -6,7 +6,7 @@ This repository complements the paper "False discovery rate control for subspace
 
 *The instructions assume that your current working directory is the base of this repository.*
 
-The code in this repository is written in Julia and Python. To set the environment install Julia 1.10.0 from https://julialang.org/downloads/, and Python 3.11.3, and make sure that both =julia= and =python= are available in your =PATH=.
+The code in this repository is written in Julia and Python. To set the environment install Julia 1.11.3 from https://julialang.org/downloads/, and Python 3.12.11, and make sure that both =julia= and =python= are available in your =PATH=.
 
 Instantiate the Julia packages
 #+begin_src
@@ -44,5 +44,18 @@ This script will download the sequences, preprocess them, and save the associate
 
 After that, you can run the experiment by executing
 #+begin_src shell
-$ julia --project=scripts scripts/run_generated_distributions.jl --alpha 0.05
+$ julia --project=scripts scripts/run_rna.jl --alpha 0.05
+#+end_src
+
+** Equity returns
+
+To run this experiment you need to download the data first, which can be done via
+#+begin_src shell
+$ python scripts/setup_sp500_returns.py
+#+end_src
+This script will download the returns, preprocess them, and save the associated matrix to the =data= folder.
+
+After that, you can run the experiment by executing
+#+begin_src shell
+$ julia --project=scripts scripts/run_sp500.jl --alpha 0.05
 #+end_src
