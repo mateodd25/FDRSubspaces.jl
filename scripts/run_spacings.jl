@@ -16,8 +16,8 @@ default(
     legendfont = fntsm,
 )
 Random.seed!(1)
-dimensions = [500, 800, 2000]
-fixed_spectrum = [1+10*1.5^(-i+1) for i in 1:20]
+dimensions = [500, 2000]
+fixed_spectrum = [1+10*1.4^(-i+1) for i in 1:20]
 rank = length(fixed_spectrum)
 upper_bound_rank = 2*rank
 ensemble = FDRControlSubspaceSelection.WignerEnsemble(fixed_spectrum)
